@@ -1,60 +1,50 @@
-"""
-Explain : 
-    rdb is a No-SQL db like redis for save key/val pair on database with
-    expiration time, it used for caching.
-
-Data Structure:
-    {
-        "a" : ValObj,
-        "b" : ValObj,
-        "c" : ValObj,
-        ...
-        "A" : ValObj,
-        "B" : ValObj,
-        "C" : ValObj,
-        ...
-    }
-
-    ValObj : 
-        - key
-        - value
-        - data
-        - exp
-
-    
-"""
-
-
-
 from datetime import timedelta, datetime
 from string import ascii_lowercase, ascii_uppercase
 import pickle
+
+"""
+pickle :
+  - to write/read data from the binary file
+
+timedelta, datetime:
+  - to set the expiration as timestamps and compare it to current time.
+
+ascii_lowercase, ascii_uppercase:
+  - to set all the keys to alphatical order and setting the value to None
+
+"""
 
 class ValObj:
     """
         ValObject Where the data is stored with its key and val.
         Attrs : 
             - key [ data key name]
-            - val [data val, any type of data]
-            - exp [the time of epiration ]
+            - val [data value , any type of data]
+            - exp [the time of expiration from the db]
+            
     """
 
-    next = None
+    next = None # our pointer
 
     def __init__(self, key, val, exp) -> None:
         self.key = key
         self.val = val
-        # set the expiration time of the object to 1 hr by default
         self.exp = (datetime.now() + timedelta(seconds=exp or  60 * 60)).timestamp()
 
     def __repr__(self) -> str:
         return f"ValObj(key={self.key}, val={self.val}, epx_mins={self.exp})"
 
-
+# Main Cache Model
 class cache :
 
     def __init__(self) : 
-        
+        """
+            We need to read a binary file which is called temp.bin 
+            which we will save the data on it to save the data from lose.
+            if we not found this binary file that mean that we didn't use 
+            write any data on the file yet, so we will create our Hash Table
+            and inside each key on it we will set None
+        """
         try :
             with open('temp.bin','rb') as binary_file :
                 self.__db_core = pickle.load(binary_file)
@@ -64,23 +54,35 @@ class cache :
                 i : None
                 for i in [j for j in ascii_lowercase+ascii_uppercase]
             }
-            
 
     def __update_binary (self):
-        # print('writing data to binary')
+        """
+            For any inserting new data we need our binary file to
+            be updated
+        """
         with open ('temp.bin', 'wb') as binary_file :
             pickle.dump(self.__db_core, binary_file)
             binary_file.close()  
-
-            
-        
+    
     def set (self, key, val,exp=None):
         """
-            Set element on cache
+            set is a method to save element on cache.
+            
+            we detect the router which the key in the hash table 
+            to know where we will save the data
+            and the router is the first char in the key,
+            first of all we detect the value of this router if none 
+            that this value with this key is the first one so we will create our object
+            and pass the data on it.
+
+            if not none, that mean there is an object already exists on it and we need 
+            to create that object and add it on the tail of the linked list which we 
+            build.
+
                 Attrs :
                     - key [String Value]
-                    - val [save data as]
-                    - exp [the total secnods ] 
+                    - val [any type of data ]
+                    - exp [the total seconds to expire from db] 
         """
         router = str(key)[0]
         if self.__db_core[router] is None :
@@ -101,11 +103,11 @@ class cache :
                     break
                 val_obj = val_obj.next
         self.__update_binary()
-        
 
     def __view(self, obj:ValObj) : 
         """
-            View if not Expiration or Delete it if expired
+            for check in the current ValObject, if its time expired
+            we will delete it
         """
         current_time = datetime.now().timestamp()
         if current_time > obj.exp:
@@ -126,7 +128,7 @@ class cache :
 
     def delete (self, key) :
         """
-            Delete element from cache
+            Delete element from cache and update the binary file
         """
         router = str(key)[0]
         obj_val:ValObj = self.__db_core[router]
@@ -144,5 +146,4 @@ class cache :
             prevoius = obj_val
             obj_val = obj_val.next
 
-
-cache = cache()
+cache = cache() # init the cache model to build and make our hash table ready to use
